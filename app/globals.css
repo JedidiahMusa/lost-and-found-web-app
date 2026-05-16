@@ -1,0 +1,82 @@
+@import url('https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;1,400&family=Nunito:wght@400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+
+  /* Warm palette */
+  --cream:       #fdf8f2;
+  --cream-dark:  #f5ede0;
+  --sand:        #e8d9c5;
+  --terracotta:  #c8612a;
+  --terra-light: #f0845a;
+  --terra-pale:  #fdf0ea;
+  --amber:       #d97706;
+  --amber-pale:  #fffbeb;
+  --moss:        #4a7c59;
+  --moss-pale:   #edf5f0;
+  --sky:         #2e7bc4;
+  --sky-pale:    #eef5fc;
+  --rose-warm:   #c0444c;
+  --rose-pale:   #fdf0f0;
+  --ink:         #2c1a0e;
+  --ink-soft:    #5c3d2a;
+  --ink-muted:   #9a7b64;
+
+  /* Shadows */
+  --shadow-card: 0 2px 8px rgba(44,26,14,0.08), 0 0 0 1px rgba(44,26,14,0.06);
+  --shadow-hover: 0 8px 24px rgba(44,26,14,0.12), 0 0 0 1px rgba(200,97,42,0.15);
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+body {
+  min-height: 100vh;
+  background-color: var(--cream);
+  color: var(--ink);
+  font-family: 'Nunito', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3 {
+  font-family: 'Lora', serif;
+}
+
+/* Warm card style */
+.card {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: var(--shadow-card);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+.card:hover {
+  box-shadow: var(--shadow-hover);
+  transform: translateY(-2px);
+}
+
+/* Staggered fade-in for grid items */
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.animate-item {
+  animation: fadeSlideUp 0.45s ease both;
+}
+.animate-item:nth-child(1)  { animation-delay: 0.05s; }
+.animate-item:nth-child(2)  { animation-delay: 0.10s; }
+.animate-item:nth-child(3)  { animation-delay: 0.15s; }
+.animate-item:nth-child(4)  { animation-delay: 0.20s; }
+.animate-item:nth-child(5)  { animation-delay: 0.25s; }
+.animate-item:nth-child(6)  { animation-delay: 0.30s; }
+.animate-item:nth-child(n+7){ animation-delay: 0.35s; }
+
+/* Warm scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--cream-dark); }
+::-webkit-scrollbar-thumb { background: var(--sand); border-radius: 99px; }
