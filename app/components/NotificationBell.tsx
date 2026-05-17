@@ -33,9 +33,50 @@ export function NotificationBell() {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [loadingNotifications, setLoadingNotifications] = useState(false);
   const channelRef = useRef<any>(null);
+  const buttonRef  = useRef<HTMLButtonElement>(null);
+
+  // Dropdown position: on narrow screens we use a fixed full-width sheet
+  // anchored to the bottom of the bell; on wider screens a regular popover.
+  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
 
   const relevantTypes = isAdmin ? adminNotifTypes : studentNotifTypes;
 
+  // ── Recalculate position whenever the dropdown opens ─────────────────────
+  useEffect(() => {
+    if (!showNotifications || !buttonRef.current) return;
+
+    const rect    = buttonRef.current.getBoundingClientRect();
+    const vw      = window.innerWidth;
+    const PANEL_W = 320;
+    const GAP     = 12; // gap below the button
+
+    if (vw < 480) {
+      // Mobile: fixed, full viewport width with horizontal padding
+      setDropdownStyle({
+        position: "fixed",
+        top:    rect.bottom + GAP,
+        left:   12,
+        right:  12,
+        width:  "auto",
+        zIndex: 9999,
+      });
+    } else {
+      // Desktop: align right edge of panel to right edge of button,
+      // but clamp so it never goes off the left side of the screen.
+      const rightEdge  = rect.right;
+      const idealLeft  = rightEdge - PANEL_W;
+      const clampedLeft = Math.max(12, idealLeft);
+      setDropdownStyle({
+        position: "fixed",
+        top:   rect.bottom + GAP,
+        left:  clampedLeft,
+        width: PANEL_W,
+        zIndex: 9999,
+      });
+    }
+  }, [showNotifications]);
+
+  // ── Unread count ──────────────────────────────────────────────────────────
   const loadUnreadCount = useCallback(async () => {
     if (!supabase || !user) return;
     const { count, error } = await supabase
@@ -62,6 +103,7 @@ export function NotificationBell() {
     return () => { if (channelRef.current) client.removeChannel(channelRef.current); };
   }, [user?.id, isAdmin, loadUnreadCount]);
 
+  // ── Fetch & mark read ─────────────────────────────────────────────────────
   const fetchNotifications = async () => {
     if (!supabase || !user) return;
     setLoadingNotifications(true);
@@ -75,7 +117,6 @@ export function NotificationBell() {
     setNotifications(data ?? []);
     setLoadingNotifications(false);
 
-    // Mark all as read
     const unreadIds = (data ?? []).filter((n) => !n.is_read).map((n) => n.id);
     if (unreadIds.length > 0) {
       await supabase.from("notifications").update({ is_read: true }).in("id", unreadIds);
@@ -91,11 +132,15 @@ export function NotificationBell() {
 
   return (
     <div className="relative">
+      {/* Bell button */}
       <button
+        ref={buttonRef}
         type="button"
         onClick={() => {
-          setShowNotifications(!showNotifications);
-          if (!showNotifications) fetchNotifications();
+          setShowNotifications((prev) => {
+            if (!prev) fetchNotifications();
+            return !prev;
+          });
         }}
         className="relative flex h-10 w-10 items-center justify-center rounded-full transition-all hover:opacity-80"
         style={{
@@ -105,6 +150,7 @@ export function NotificationBell() {
           boxShadow: "var(--shadow-card)",
         }}
         aria-label="Notifications"
+        aria-expanded={showNotifications}
       >
         <Bell className="h-[18px] w-[18px]" />
         {unreadCount > 0 && (
@@ -119,17 +165,21 @@ export function NotificationBell() {
 
       {showNotifications && (
         <>
-          {/* Backdrop — closes dropdown, but notifications use button onClick so backdrop doesn't interfere */}
-          <div className="fixed inset-0 z-40" onClick={() => setShowNotifications(false)} />
-
-          {/* Dropdown */}
+          {/* Backdrop */}
           <div
-            className="absolute right-0 mt-3 w-80 z-50 overflow-hidden"
+            className="fixed inset-0 z-[9998]"
+            onClick={() => setShowNotifications(false)}
+          />
+
+          {/* Dropdown — position calculated above */}
+          <div
+            className="overflow-hidden"
             style={{
+              ...dropdownStyle,
               borderRadius: 20,
               background: "#fff",
               border: "1.5px solid var(--sand)",
-              boxShadow: "0 12px 40px rgba(44,26,14,0.14)",
+              boxShadow: "0 12px 40px rgba(44,26,14,0.16)",
             }}
           >
             {/* Header */}
@@ -142,37 +192,58 @@ export function NotificationBell() {
             >
               <div className="flex items-center gap-2">
                 <Bell className="h-4 w-4" style={{ color: "var(--terracotta)" }} />
-                <span className="text-sm font-bold" style={{ fontFamily: "Lora, serif", color: "var(--ink)" }}>
+                <span
+                  className="text-sm font-bold"
+                  style={{ fontFamily: "Lora, serif", color: "var(--ink)" }}
+                >
                   Notifications
                 </span>
               </div>
-              {unreadCount > 0 && (
-                <span
-                  className="rounded-full px-2 py-0.5 text-xs font-bold"
-                  style={{ background: "var(--terra-pale)", color: "var(--terracotta)" }}
+              <div className="flex items-center gap-2">
+                {unreadCount > 0 && (
+                  <span
+                    className="rounded-full px-2 py-0.5 text-xs font-bold"
+                    style={{ background: "var(--terra-pale)", color: "var(--terracotta)" }}
+                  >
+                    {unreadCount} new
+                  </span>
+                )}
+                {/* Close button — especially useful on mobile */}
+                <button
+                  type="button"
+                  onClick={() => setShowNotifications(false)}
+                  className="flex h-6 w-6 items-center justify-center rounded-full text-xs transition hover:opacity-60"
+                  style={{ background: "var(--cream-dark)", color: "var(--ink-muted)" }}
+                  aria-label="Close notifications"
                 >
-                  {unreadCount} new
-                </span>
-              )}
+                  ✕
+                </button>
+              </div>
             </div>
 
             {/* List */}
-            <div className="max-h-[320px] overflow-y-auto">
+            <div className="overflow-y-auto" style={{ maxHeight: "min(320px, 60vh)" }}>
               {loadingNotifications ? (
-                <div className="flex flex-col items-center justify-center gap-2 p-8 text-sm" style={{ color: "var(--ink-muted)" }}>
+                <div
+                  className="flex flex-col items-center justify-center gap-2 p-8 text-sm"
+                  style={{ color: "var(--ink-muted)" }}
+                >
                   <span className="text-2xl animate-pulse">🔔</span>
                   Loading…
                 </div>
               ) : notifications.length === 0 ? (
-                <div className="flex flex-col items-center justify-center gap-2 p-8 text-sm" style={{ color: "var(--ink-muted)" }}>
+                <div
+                  className="flex flex-col items-center justify-center gap-2 p-8 text-sm"
+                  style={{ color: "var(--ink-muted)" }}
+                >
                   <span className="text-2xl">🌿</span>
                   Nothing here yet
                 </div>
               ) : (
                 notifications.map((n, i) => {
-                  const meta = typeLabel[n.type] ?? { emoji: "📬", label: n.type };
+                  const meta    = typeLabel[n.type] ?? { emoji: "📬", label: n.type };
                   const isUnread = !n.is_read;
-                  const href = getHref(n.type, n.item_id, isAdmin);
+                  const href    = getHref(n.type, n.item_id, isAdmin);
 
                   return (
                     <button
@@ -183,17 +254,27 @@ export function NotificationBell() {
                       className="w-full text-left px-4 py-3 border-b last:border-0 transition-opacity hover:opacity-75"
                       style={{
                         borderColor: "var(--cream-dark)",
-                        background: isUnread ? "var(--terra-pale)" : (i % 2 === 0 ? "#fff" : "#fdfaf7"),
+                        background: isUnread
+                          ? "var(--terra-pale)"
+                          : i % 2 === 0 ? "#fff" : "#fdfaf7",
                         cursor: href ? "pointer" : "default",
                       }}
                     >
                       <div className="flex gap-3">
-                        <span className="text-lg leading-none mt-0.5">{meta.emoji}</span>
+                        <span className="text-lg leading-none mt-0.5 shrink-0">
+                          {meta.emoji}
+                        </span>
                         <div className="min-w-0 flex-1">
-                          <p className="text-xs font-bold uppercase tracking-wide mb-0.5" style={{ color: "var(--ink-muted)" }}>
+                          <p
+                            className="text-xs font-bold uppercase tracking-wide mb-0.5"
+                            style={{ color: "var(--ink-muted)" }}
+                          >
                             {meta.label}
                           </p>
-                          <p className="text-sm leading-snug" style={{ color: "var(--ink-soft)", fontFamily: "Nunito, sans-serif" }}>
+                          <p
+                            className="text-sm leading-snug"
+                            style={{ color: "var(--ink-soft)", fontFamily: "Nunito, sans-serif" }}
+                          >
                             {n.message}
                           </p>
                           <p className="mt-1 text-xs" style={{ color: "var(--ink-muted)" }}>
@@ -204,10 +285,18 @@ export function NotificationBell() {
                           </p>
                         </div>
                         {isUnread && (
-                          <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full" style={{ background: "var(--terracotta)" }} />
+                          <span
+                            className="mt-1.5 h-2 w-2 shrink-0 rounded-full self-start"
+                            style={{ background: "var(--terracotta)" }}
+                          />
                         )}
                         {href && (
-                          <span className="mt-1.5 text-xs self-center" style={{ color: "var(--ink-muted)" }}>→</span>
+                          <span
+                            className="mt-1 text-xs self-center shrink-0"
+                            style={{ color: "var(--ink-muted)" }}
+                          >
+                            →
+                          </span>
                         )}
                       </div>
                     </button>
