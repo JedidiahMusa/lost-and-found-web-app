@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { ImagePlus, Search, X, Hand, Clock3, CheckCircle2, XCircle, MapPin } from "lucide-react";
-import { FormEvent, useCallback, useEffect, useRef, useState, useMemo } from "react";
+import { FormEvent, useCallback, useEffect, useRef, useState, useMemo, Suspense } from "react"; // Added Suspense
 import { useSearchParams } from "next/navigation";
 import { AppHeader } from "@/app/components/AppHeader";
 import { ItemCard } from "@/app/components/ItemCard";
@@ -45,10 +45,7 @@ type LostItem = {
   profiles?: { email: string } | null;
 };
 
-// "Found Items" vs "Lost Items" — the main feed toggle
 type FeedTab = "found" | "lost";
-
-// "Found an item" vs "I lost something" — the sidebar submit toggle
 type SubmitTab = "found" | "lost";
 
 // ── Claim status display ──────────────────────────────────────────────────────
@@ -63,9 +60,26 @@ const claimDateFormatter = new Intl.DateTimeFormat("en-US", {
   month: "short", day: "numeric", hour: "numeric", minute: "2-digit",
 });
 
-// ── Component ─────────────────────────────────────────────────────────────────
+// ── Main Export Wrapper (Solves the Build Bug) ───────────────────────────────
 
 export default function StudentPortalPage() {
+  return (
+    <Suspense fallback={
+      <main className="min-h-screen flex items-center justify-center" style={{ background: "var(--cream)" }}>
+        <div className="text-center text-sm" style={{ color: "var(--ink-muted)" }}>
+          <span className="block text-3xl mb-3 animate-spin">⏳</span>
+          Loading Student Portal...
+        </div>
+      </main>
+    }>
+      <StudentPortalContent />
+    </Suspense>
+  );
+}
+
+// ── Original Logic Component ──────────────────────────────────────────────────
+
+function StudentPortalContent() {
   const { user, loading: authLoading, isAdmin } = useAuth();
   const searchParams = useSearchParams();
   const highlightId  = searchParams.get("highlight");
@@ -298,7 +312,6 @@ export default function StudentPortalPage() {
 
       setLostDesc(""); setLostCategory("other"); setLostPhoto(null); setLostContact("");
       setNotice("📢 Posted to Lost Items — other students can now see it!");
-      // Auto-switch feed to lost tab so they see their post immediately
       setFeedTab("lost");
       form.reset();
     } catch (e: any) {
@@ -312,7 +325,6 @@ export default function StudentPortalPage() {
   async function submitClaim(itemId: string, message: string) {
     if (!supabase || !user) throw new Error(!user ? "Sign in before claiming." : supabaseSetupMessage);
 
-    // Duplicate check — has this student already claimed this item?
     const { data: existing } = await supabase
       .from("claims")
       .select("id, status")
@@ -368,7 +380,6 @@ export default function StudentPortalPage() {
     );
   }
 
-  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <main className="min-h-screen" style={{ background: "var(--cream)" }}>
       <AppHeader />
@@ -810,14 +821,12 @@ function LostItemCard({
   const cat     = CATEGORIES_MAP[item.category as ItemCategory];
   const isOwner = viewerId === item.user_id;
 
-  // "none" | "confirm" | "deleting"
   const [deleteState, setDeleteState] = useState<"none" | "confirm" | "deleting">("none");
 
   async function handleDelete() {
     if (!onDelete) return;
     setDeleteState("deleting");
     await onDelete(item.id);
-    // card will unmount once parent filters it out
   }
 
   return (
@@ -828,7 +837,6 @@ function LostItemCard({
         border: "1.5px solid #fde68a",
       }}>
 
-      {/* Amber top bar */}
       <div className="px-4 py-2 flex items-center gap-2"
         style={{ background: "linear-gradient(90deg, #fffbeb, #fef3c7)", borderBottom: "1px solid #fde68a" }}>
         <MapPin className="h-3.5 w-3.5 shrink-0" style={{ color: "var(--amber)" }} />
@@ -842,7 +850,6 @@ function LostItemCard({
         )}
       </div>
 
-      {/* Optional photo */}
       {item.image_url && (
         <div className="relative aspect-[4/3]" style={{ background: "var(--cream-dark)" }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -855,7 +862,6 @@ function LostItemCard({
           {item.description}
         </p>
 
-        {/* Contact info */}
         {item.contact_info && (
           <div className="flex items-start gap-2 rounded-xl px-3 py-2.5"
             style={{ background: "var(--amber-pale)", border: "1px solid #fde68a" }}>
@@ -880,12 +886,10 @@ function LostItemCard({
           </time>
         </div>
 
-        {/* Owner actions */}
         {isOwner && (
           <div className="border-t pt-3" style={{ borderColor: "var(--cream-dark)" }}>
             {deleteState === "none" && (
               <div className="flex gap-2">
-                {/* Mark as found — also deletes the post */}
                 <button type="button" onClick={() => setDeleteState("confirm")}
                   className="flex-1 h-9 rounded-xl text-xs font-bold text-white transition hover:opacity-90"
                   style={{ background: "linear-gradient(135deg, var(--moss), #6aaa7a)" }}>
