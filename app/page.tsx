@@ -2,7 +2,15 @@
 
 import Link from "next/link";
 import { ImagePlus, Search, X, Hand, Clock3, CheckCircle2, XCircle, MapPin } from "lucide-react";
-import { FormEvent, useCallback, useEffect, useRef, useState, useMemo } from "react";
+import {
+  FormEvent,
+  Suspense,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useMemo,
+} from "react";
 import { useSearchParams } from "next/navigation";
 import { AppHeader } from "@/app/components/AppHeader";
 import { ItemCard } from "@/app/components/ItemCard";
@@ -65,7 +73,14 @@ const claimDateFormatter = new Intl.DateTimeFormat("en-US", {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export default function StudentPortalPage() {
+export default function Page() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <StudentPortalPage />
+    </Suspense>
+  );
+}
+ function StudentPortalPage() {
   const { user, loading: authLoading, isAdmin } = useAuth();
   const searchParams = useSearchParams();
   const highlightId  = searchParams.get("highlight");
