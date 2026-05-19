@@ -93,6 +93,14 @@ export function AppHeader({
                   </p>
                   <p className="text-xs capitalize" style={{ color: "var(--ink-muted)" }}>
                     {profile?.role ?? "student"}
+                    {profile?.matric_number && (
+                      <span
+                        className="ml-1.5 font-mono font-bold not-italic"
+                        style={{ color: "var(--terracotta)" }}
+                      >
+                        · {profile.matric_number}
+                      </span>
+                    )}
                   </p>
                 </div>
                 <button

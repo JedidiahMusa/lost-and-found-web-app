@@ -181,6 +181,7 @@ export type Database = {
         Row: {
           created_at: string
           email: string
+          matric_number: string | null
           id: string
           role: Database["public"]["Enums"]["profile_role"]
         }
@@ -188,11 +189,13 @@ export type Database = {
           created_at?: string
           email: string
           id: string
+          matric_number?: string | null;
           role?: Database["public"]["Enums"]["profile_role"]
         }
         Update: {
           created_at?: string
           email?: string
+          matric_number?: string | null;
           id?: string
           role?: Database["public"]["Enums"]["profile_role"]
         }
